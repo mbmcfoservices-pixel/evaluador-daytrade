@@ -1,9 +1,10 @@
 import streamlit as st
 import yfinance as yf
 import pandas as pd
+import numpy as np
 
-# 1. Page Config
-st.set_page_config(page_title="Evaluador de Riesgo Day Trade", layout="centered")
+# 1. Page Configuration
+st.set_page_config(page_title="Informe Estructural Day Trade", layout="centered")
 
 # 2. Minimalist Dark Mode CSS (Black Background, Green Accent, Yellow PayPal Button)
 st.markdown("""
@@ -50,86 +51,122 @@ st.markdown("""
         margin-bottom: 20px;
         font-size: 0.85rem;
     }
+    .report-card {
+        background-color: #141414;
+        border: 1px solid #262626;
+        border-radius: 8px;
+        padding: 15px;
+        margin-top: 15px;
+    }
     </style>
 """, unsafe_allow_html=True)
 
 # 3. Headers and Disclaimers
-st.title("⚡ Evaluador de Riesgo Day Trade")
-st.caption("Herramienta cuantitativa para operaciones intradía (Day Trading)")
+st.title("⚡ Métrica y Estructura Day Trade")
+st.caption("Datos cuantitativos e institucionales para Acciones, Forex y Cripto")
 
 st.markdown("""
 <div class="disclaimer-box">
     <strong>⚠️ AVISO DE RIESGO OBLIGATORIO:</strong><br>
-    • Esta herramienta evalúa parámetros exclusivamente para <strong>operaciones de DAY TRADING (Intradía)</strong>.<br>
-    • <strong>NO aplica</strong> para inversiones a mediano o largo plazo.<br>
-    • Los resultados son modelos de probabilidad y <strong>NO garantizan rendimiento futuro</strong>.<br>
-    • Invierte de manera responsable y gestiona siempre tu capital con un stop-loss estricto.
+    • Esta herramienta proporciona datos objetivos para <strong>operaciones de DAY TRADING (Intradía)</strong>.<br>
+    • <strong>NO emite señales de compra o venta</strong>. Evalúa los datos bajo tu propio criterio y gestión de riesgo.<br>
+    • Compatible con Acciones (ej. TSLA, NVDA) y Divisas Forex (ej. EURUSD=X, GBPUSD=X).<br>
+    • Invierte de manera responsable y utiliza siempre un stop-loss estricto.
 </div>
 """, unsafe_allow_html=True)
 
 # 4. Input Form
 with st.form(key="trade_form"):
-    ticker_symbol = st.text_input("SÍMBOLO DEL TICKER (Ej. TSLA, NVDA, AAPL)", value="", max_chars=10).upper().strip()
-    submit_button = st.form_submit_button(label="ANALIZAR RIESGO (GO)")
+    ticker_symbol = st.text_input("SÍMBOLO DEL TICKER (Ej. TSLA, EURUSD=X, AAPL)", value="", max_chars=15).upper().strip()
+    submit_button = st.form_submit_button(label="ANALIZAR ESTRUCTURA (GO)")
 
 # 5. Donation Area Below Ticker
 st.markdown("<br>", unsafe_allow_html=True)
 st.write("☕ **¿Te resulta útil esta herramienta?** Apoya el mantenimiento del servidor con una donación.")
 
-# *** PASTE YOUR PAYPAL LINK HERE ***
+# *** REPLACE WITH YOUR ACTUAL PAYPAL LINK WHEN READY ***
 PAYPAL_DONATE_URL = "https://www.paypal.com"
 
 st.link_button("💛 Donar con PayPal", url=PAYPAL_DONATE_URL)
 st.markdown("---")
 
-# 6. Evaluation Logic
+# 6. Institutional Calculation Engine
 if submit_button and ticker_symbol:
-    with st.spinner(f"Analizando métricas intradía para {ticker_symbol}..."):
+    with st.spinner(f"Obteniendo estructura de mercado para {ticker_symbol}..."):
         try:
-            ticker = yf.Ticker(ticker_symbol)
-            hist = ticker.history(period="1mo")
-            info = ticker.info
+            # Download 15-minute timeframe data
+            df = yf.download(tickers=ticker_symbol, period="5d", interval="15m", progress=False)
             
-            if hist.empty:
-                st.error("❌ Símbolo no encontrado. Por favor verifica el ticker ingresado.")
+            if isinstance(df.columns, pd.MultiIndex):
+                df.columns = df.columns.get_level_values(0)
+                
+            if df.empty or len(df) < 20:
+                st.error("❌ Símbolo no encontrado o datos insuficientes. Para Forex añade '=X' al final (Ej. EURUSD=X).")
             else:
-                vol_actual = hist['Volume'].iloc[-1]
-                vol_promedio = hist['Volume'].mean()
-                rvol = vol_actual / vol_promedio if vol_promedio > 0 else 1.0
+                latest = df.iloc[-1]
                 
-                float_shares = info.get('floatShares', 0)
-                short_pct = (info.get('shortPercentOfFloat', 0) or 0) * 100
+                # A. VWAP & Standard Deviation Bands
+                tp = (df['High'] + df['Low'] + df['Close']) / 3
+                vol = df['Volume'].replace(0, 1) # Tick volume support for Forex
+                vwap_series = (tp * vol).cumsum() / vol.cumsum()
+                std_dev = df['Close'].std()
                 
-                try:
-                    expiraciones = ticker.options
-                    iv_promedio = ticker.option_chain(expiraciones[0]).calls['impliedVolatility'].mean() * 100 if expiraciones else 0
-                except:
-                    iv_promedio = 0
+                current_vwap = vwap_series.iloc[-1]
+                upper_band = current_vwap + std_dev
+                lower_band = current_vwap - std_dev
                 
-                score_rvol = 10 if rvol >= 2.5 else (7 if rvol >= 1.5 else 3)
-                score_short = 10 if short_pct >= 15 else (7 if short_pct >= 7 else 4)
-                score_float = 9 if (float_shares and float_shares < 50e6) else 5
-                score_iv = 9 if iv_promedio >= 70 else (7 if iv_promedio >= 35 else 3)
+                # B. Average True Range (ATR 14)
+                high_low = df['High'] - df['Low']
+                high_close = (df['High'] - df['Close'].shift()).abs()
+                low_close = (df['Low'] - df['Close'].shift()).abs()
+                tr = pd.concat([high_low, high_close, low_close], axis=1).max(axis=1)
+                atr = tr.rolling(14).mean().iloc[-1]
                 
-                puntaje_final = round((score_rvol * 0.35) + (score_float * 0.20) + (score_short * 0.25) + (score_iv * 0.20), 1)
+                # C. Liquidity Clusters (20-Period Extremes)
+                liquidity_high = df['High'].tail(20).max()
+                liquidity_low = df['Low'].tail(20).min()
+                
+                # D. Fair Value Gap (FVG) / Structural Imbalance
+                fvg_status = "Estructura Balanceada"
+                if len(df) >= 3:
+                    c1, c3 = df.iloc[-3], df.iloc[-1]
+                    if c3['Low'] > c1['High']:
+                        fvg_status = f"Desbalance Alcista [{c1['High']:.4f} - {c3['Low']:.4f}]"
+                        fvg_color = "green"
+                    elif c3['High'] < c1['Low']:
+                        fvg_status = f"Desbalance Bajista [{c3['High']:.4f} - {c1['Low']:.4f}]"
+                        fvg_color = "red"
+                    else:
+                        fvg_color = "white"
 
-                st.metric(label="PUNTUACIÓN DE RIESGO / MOMENTO (1 a 10)", value=f"{puntaje_final} / 10")
+                # DISPLAY RESULTS
+                st.subheader(f"📊 Informe de Mercado: {ticker_symbol}")
                 
-                if puntaje_final >= 8.0:
-                    st.success("🔥 **EVALUACIÓN:** Alta volatilidad y volumen. Configuración óptima para Day Trading con gestión estricta de riesgo.")
-                elif puntaje_final >= 5.5:
-                    st.warning("⚡ **EVALUACIÓN:** Configuración moderada. Requiere confirmación de patrón técnico antes de entrar.")
-                else:
-                    st.error("🚫 **EVALUACIÓN:** Bajo volumen o momentum. Alto riesgo de estancamiento (Chop). No recomendado para Day Trade hoy.")
+                col_price, col_vwap = st.columns(2)
+                col_price.metric("Precio Actual", f"{latest['Close']:.4f}")
+                col_vwap.metric("VWAP de la Sesión", f"{current_vwap:.4f}")
 
+                st.markdown("<div class='report-card'>", unsafe_allow_html=True)
+                st.markdown("#### 🎯 Niveles de Liquidez y Desviación")
                 col1, col2 = st.columns(2)
                 with col1:
-                    st.write(f"**Volumen Relativo (RVOL):** {rvol:.2f}x")
-                    st.write(f"**Interés en Corto:** {short_pct:.1f}%")
+                    st.write(f"**Banda Superior VWAP (+1 σ):** {upper_band:.4f}")
+                    st.write(f"**Banda Inferior VWAP (-1 σ):** {lower_band:.4f}")
+                    st.write(f"**Volatilidad (ATR 14):** {atr:.4f}")
                 with col2:
-                    flotante_m = f"{float_shares/1e6:.1f}M" if float_shares else "N/D"
-                    st.write(f"**Acciones en Flotante:** {flotante_m}")
-                    st.write(f"**Volatilidad Implícita:** {iv_promedio:.1f}%")
-                    
+                    st.write(f"**Piscina de Liquidez Superior:** {liquidity_high:.4f}")
+                    st.write(f"**Piscina de Liquidez Inferior:** {liquidity_low:.4f}")
+                    st.write(f"**Estado Estructural:** {fvg_status}")
+                st.markdown("</div>", unsafe_allow_html=True)
+
+                # TRADER INTERPRETATION FRAMEWORK
+                st.markdown("<br>", unsafe_allow_html=True)
+                st.markdown("#### 🧠 Guía para la Interpretación del Operador:")
+                st.info("""
+                • **Precio por encima de VWAP (+1 σ):** El mercado se encuentra en estado sobreextendido. Evalúa posibles reversiones a la media o rupturas de alto volumen.
+                • **Precio por debajo de VWAP (-1 σ):** El mercado cotiza con descuento en relación al volumen de la sesión.
+                • **Piscinas de Liquidez:** Representan zonas donde se acumulan órdenes de Stop-Loss. Los algoritmos suelen buscar estas zonas antes de cambiar de dirección.
+                """)
+                
         except Exception as e:
             st.error(f"Error procesando los datos: {e}")
