@@ -80,11 +80,11 @@ with st.form(key="trade_form"):
     ticker_symbol = st.text_input("SÍMBOLO DEL TICKER (Ej. TSLA, EURUSD=X, AAPL)", value="", max_chars=15).upper().strip()
     submit_button = st.form_submit_button(label="ANALIZAR ESTRUCTURA (GO)")
 
-# 5. Donation Area Below Ticker
+# 5. Área de Donaciones (Apoyo a Colombia con imagen de bandera)
 st.markdown("<br>", unsafe_allow_html=True)
 st.markdown("""
 <div style="background-color: #1a0000; border-left: 4px solid #ff4444; padding: 12px; border-radius: 4px; margin-bottom: 15px;">
-    <strong>Fondo de Ayuda Humanitaria:</strong><br>
+    <strong><img src="https://flagcdn.com/24x18/co.png" width="24" height="18" alt="Bandera de Colombia" style="vertical-align: middle; margin-right: 8px;">Fondo de Ayuda Humanitaria - Colombia:</strong><br>
     El 100% de los fondos recaudados a través de esta herramienta serán destinados directamente a apoyar a las familias y comunidades afectadas por los recientes terremotos en Colombia.
 </div>
 """, unsafe_allow_html=True)
