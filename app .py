@@ -84,7 +84,7 @@ with st.form(key="trade_form"):
 st.markdown("<br>", unsafe_allow_html=True)
 st.markdown("""
 <div style="background-color: #1a0000; border-left: 4px solid #ff4444; padding: 12px; border-radius: 4px; margin-bottom: 15px;">
-    <strong>🇨🇴 Fondo de Ayuda Humanitaria:</strong><br>
+    <strong>Fondo de Ayuda Humanitaria:</strong><br>
     El 100% de los fondos recaudados a través de esta herramienta serán destinados directamente a apoyar a las familias y comunidades afectadas por los recientes terremotos en Colombia.
 </div>
 """, unsafe_allow_html=True)
