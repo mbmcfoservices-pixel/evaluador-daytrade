@@ -82,12 +82,17 @@ with st.form(key="trade_form"):
 
 # 5. Donation Area Below Ticker
 st.markdown("<br>", unsafe_allow_html=True)
-st.write("☕ **¿Te resulta útil esta herramienta?** Apoya el mantenimiento del servidor con una donación.")
+st.markdown("""
+<div style="background-color: #1a0000; border-left: 4px solid #ff4444; padding: 12px; border-radius: 4px; margin-bottom: 15px;">
+    <strong>🇨🇴 Fondo de Ayuda Humanitaria:</strong><br>
+    El 100% de los fondos recaudados a través de esta herramienta serán destinados directamente a apoyar a las familias y comunidades afectadas por los recientes terremotos en Colombia.
+</div>
+""", unsafe_allow_html=True)
 
-# *** REPLACE WITH YOUR ACTUAL PAYPAL LINK WHEN READY ***
+# *** REEMPLAZA CON TU ENLACE REAL DE PAYPAL CUANDO LO TENGAS ***
 PAYPAL_DONATE_URL = "https://www.paypal.com"
 
-st.link_button("💛 Donar con PayPal", url=PAYPAL_DONATE_URL)
+st.link_button("💛 Donar y Apoyar a Colombia (PayPal)", url=PAYPAL_DONATE_URL)
 st.markdown("---")
 
 # 6. Institutional Calculation Engine
